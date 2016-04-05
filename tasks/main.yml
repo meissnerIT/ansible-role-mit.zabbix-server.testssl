@@ -7,10 +7,22 @@
        update_cache=yes
        cache_valid_time=3600
 
-- name: "rsync testssl.sh"
-  synchronize: src=testssl.sh dest=/usr/local/share/
+- name: "rsync testssl.sh (directory, distribution)"
+  synchronize: 
+    src: testssl.sh
+    dest: /usr/local/share/
+    rsync_opts:
+      - "--exclude=.git"
 
-- name: "rsync mit-testssl.sh"
+- name: "rsync mit-testssl.sh (Zabbix wrapper script)"
+  become: yes
   synchronize: src=mit-testssl.sh dest=/usr/lib/zabbix/externalscripts/mit-testssl.sh
 
-# //TODO: Increase timeout in /etc/zabbix/zabbix_server.conf to 30sec
+- name: "Ensure timeout>=30"
+  shell: cat /etc/zabbix/zabbix_server.conf|awk -v FS="=" '/^Timeout=/ { if ($2<30) print $0; }'
+  become: yes
+  register: timeout
+  changed_when: timeout.stdout_lines|length > 0
+- debug: msg="{{ timeout.stdout }}"
+  when: timeout.stdout_lines|length > 0
+
