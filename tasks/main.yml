@@ -1,6 +1,7 @@
 ---
 
 - name: "rsync testssl.sh (directory, distribution)"
+  become: yes
   synchronize: 
     src: testssl.sh
     dest: /usr/local/share/
