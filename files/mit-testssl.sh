@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 #
-# v2016-04-02-3
+# v2017-08-24-1
 
+set -e
+
+# Ensure exit-code 0 even if grep fails
 # cat /tmp/testssl.sh-result-www.meissner.it \
 /usr/local/share/testssl.sh/testssl.sh --vulnerable --color 0 --quiet $1 \
-    | grep "(NOT ok)"
+    | grep "(NOT ok)" || true
 
