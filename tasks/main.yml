@@ -12,11 +12,3 @@
   become: yes
   synchronize: src=mit-testssl.sh dest=/usr/lib/zabbix/externalscripts/mit-testssl.sh
 
-- name: "Ensure timeout>=30"
-  shell: cat /etc/zabbix/zabbix_server.conf|awk -v FS="=" '/^Timeout=/ { if ($2<30) print $0; }'
-  become: yes
-  register: timeout
-  changed_when: timeout.stdout_lines|length > 0
-- debug: msg="{{ timeout.stdout }}"
-  when: timeout.stdout_lines|length > 0
-
