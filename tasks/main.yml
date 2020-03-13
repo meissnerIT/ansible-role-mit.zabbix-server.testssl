@@ -5,6 +5,7 @@
   synchronize: 
     src: testssl.sh
     dest: /usr/local/share/
+    delete: yes
     rsync_opts:
       - "--exclude=.git"
 
