@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<zabbix_export>
+    <version>4.4</version>
+    <date>2020-03-20T12:49:49Z</date>
+    <groups>
+        <group>
+            <name>Templates/Modules</name>
+        </group>
+    </groups>
+    <templates>
+        <template>
+            <template>Template Module HTTPS Service testssl</template>
+            <name>Template Module HTTPS Service testssl</name>
+            <description>v2020-03-20&#13;
+&#13;
+#17257: Zabbix Test für TLS/SSL Verschlüsselung (meissner.IT)&#13;
+&#13;
+* 2020-03-20: Switched from agent to trapper.</description>
+            <groups>
+                <group>
+                    <name>Templates/Modules</name>
+                </group>
+            </groups>
+            <applications>
+                <application>
+                    <name>HTTPS service</name>
+                </application>
+            </applications>
+            <items>
+                <item>
+                    <name>HTTPS service mit-testssl</name>
+                    <type>TRAP</type>
+                    <key>mit-testssl.sh</key>
+                    <delay>0</delay>
+                    <history>30d</history>
+                    <trends>0</trends>
+                    <value_type>TEXT</value_type>
+                    <applications>
+                        <application>
+                            <name>HTTPS service</name>
+                        </application>
+                    </applications>
+                    <preprocessing>
+                        <step>
+                            <type>TRIM</type>
+                            <params><![CDATA[ ]]></params>
+                        </step>
+                    </preprocessing>
+                    <request_method>POST</request_method>
+                    <triggers>
+                        <trigger>
+                            <expression>{nodata(2d)}=1</expression>
+                            <name>Data from SSL configuration check</name>
+                            <priority>INFO</priority>
+                            <description>No data transmitted from trapper - check script (#17257)</description>
+                        </trigger>
+                        <trigger>
+                            <expression>{strlen()}&gt;0</expression>
+                            <name>SSL configuration ({ITEM.LASTVALUE})</name>
+                            <priority>WARNING</priority>
+                            <description>Details on zabbix via:&#13;
+/usr/lib/zabbix/externalscripts/mit-testssl.sh https://{HOST.CONN}:{$HTTPS_PORT}/</description>
+                        </trigger>
+                    </triggers>
+                </item>
+            </items>
+            <macros>
+                <macro>
+                    <macro>{$HTTPS_PORT}</macro>
+                    <value>443</value>
+                </macro>
+            </macros>
+        </template>
+    </templates>
+</zabbix_export>

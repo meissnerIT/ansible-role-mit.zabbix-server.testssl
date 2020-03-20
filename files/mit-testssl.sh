@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 #
+# Distributed via ansible - mit.zabbix-server.testssl
+#
 # v2017-08-24-1
 
 set -e

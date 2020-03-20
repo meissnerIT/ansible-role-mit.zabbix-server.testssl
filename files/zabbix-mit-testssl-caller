@@ -1,0 +1,83 @@
+#!/usr/bin/env python
+#
+# Distributed via ansible - mit.zabbix-server.testssl
+#
+#17257: Zabbix Test fuer TLS/SSL Verschluesselung
+#
+# Finds all hosts using mit-testssl.sh via Zabbix API, runs testssl.sh
+# and reports back via zabbix_sender.
+# Idempotent - can be called as often as you wish.
+
+import ConfigParser
+import os
+import subprocess
+import sys
+import logging
+# https://github.com/lukecyca/pyzabbix
+from pyzabbix import ZabbixAPI
+
+stream = logging.StreamHandler(sys.stdout)
+stream.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+log = logging.getLogger(os.path.basename(__file__))
+log.addHandler(stream)
+log.setLevel(logging.INFO)
+
+#logpz = logging.getLogger('pyzabbix')
+#logpz.addHandler(stream)
+#logpz.setLevel(logging.DEBUG)
+
+configParser = ConfigParser.RawConfigParser()   
+configFilePath = r'/etc/zabbix/zabbix_agentd-mit-testssl.sh.conf'
+configParser.read(configFilePath)
+zabbix_api_user = configParser.get('DEFAULT', 'zabbix-api.user')
+zabbix_api_password = configParser.get('DEFAULT', 'zabbix-api.password')
+zabbix_api_url = configParser.get('DEFAULT', 'zabbix-api.url')
+zabbix_host = configParser.get('DEFAULT', 'zabbix.host')
+
+# https://stackoverflow.com/questions/419163/what-does-if-name-main-do
+zapi = ZabbixAPI(zabbix_api_url)
+zapi.login(zabbix_api_user, zabbix_api_password)
+log.debug("Connected to Zabbix API Version %s" % zapi.api_version())
+
+#template = zapi.template.get(search={ "host": "Template App HTTPS Service*testssl" })
+#template = zapi.template.get(search={ "host": "Template App HTTPS Service testssl" }, output=["templateid"])
+#templateid=template[0]['templateid']
+#print('Got templateid %s' % templateid)
+
+# sort in order to get the same order within every call, makes debugging easier
+for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid"):
+    hostid=item["hostid"]
+    host1 = zapi.host.get(hostids=item["hostid"])
+    if host1:
+        host = host1[0]['host']
+        usermacroHttpsPort = zapi.usermacro.get(hostids=hostid, filter={ "macro": "{$HTTPS_PORT}"})
+        if usermacroHttpsPort:
+            httpsport = usermacroHttpsPort[0]["value"]
+        else:
+            httpsport = 443
+        hostinterface = zapi.hostinterface.get(hostids=hostid)
+	log.debug(hostinterface)
+        if hostinterface[0]['useip']=='1':
+            hostconn = hostinterface[0]['ip']
+        else:
+            hostconn = hostinterface[0]['dns']
+        #log.debug("Got %s (id=%s) with %s:%s"% (host1[0]['host'], hostid, hostconn, httpsport))
+        url = "https://%s:%s" % (hostconn, httpsport)
+        testsslCmd = ["/usr/lib/zabbix/externalscripts/mit-testssl.sh", url]
+        #testsslCmd = ["echo"]
+        log.debug("Executing %s for %s (id=%s)" % (testsslCmd, host, hostid))
+        log.info("Checking %s" % (host))
+        testsslOutput = subprocess.check_output(testsslCmd).strip()
+        log.debug("Got '%s' from %s" % (testsslOutput, testsslCmd))
+        zabbixSenderCmd = [r'zabbix_sender', '-z', zabbix_host, '-s', host, '-k', 'mit-testssl.sh', '-o', '%s' % (testsslOutput)]
+        log.debug("Executing %s" % zabbixSenderCmd)
+        try:
+            zabbixSenderOutput = subprocess.check_output(zabbixSenderCmd).strip()
+            log.debug("Called %s, got %s" % (zabbixSenderCmd, zabbixSenderOutput))
+            log.info("Transmitted result '%s' for %s to zabbix server" % (testsslOutput, host))
+        except:
+            log.warn("Got error while executing %s" % (zabbixSenderCmd))
+            log.warn(zabbixSenderOutput)
+log.info("READY.")
+
