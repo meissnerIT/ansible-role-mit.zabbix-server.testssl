@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>4.4</version>
-    <date>2020-03-20T12:49:49Z</date>
+    <date>2020-03-20T13:38:41Z</date>
     <groups>
         <group>
             <name>Templates/Modules</name>
@@ -9,8 +9,8 @@
     </groups>
     <templates>
         <template>
-            <template>Template Module HTTPS Service testssl</template>
-            <name>Template Module HTTPS Service testssl</name>
+            <template>Template Module HTTPS Service mit-testssl.sh</template>
+            <name>Template Module HTTPS Service mit-testssl.sh</name>
             <description>v2020-03-20&#13;
 &#13;
 #17257: Zabbix Test für TLS/SSL Verschlüsselung (meissner.IT)&#13;
@@ -28,7 +28,7 @@
             </applications>
             <items>
                 <item>
-                    <name>HTTPS service mit-testssl</name>
+                    <name>HTTPS service mit-testssl.sh</name>
                     <type>TRAP</type>
                     <key>mit-testssl.sh</key>
                     <delay>0</delay>
