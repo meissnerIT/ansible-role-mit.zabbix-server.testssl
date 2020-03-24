@@ -1,7 +1,6 @@
 ---
 
 - name: "rsync testssl.sh (directory, distribution)"
-  become: yes
   synchronize: 
     src: testssl.sh
     dest: /usr/local/share/
@@ -10,7 +9,6 @@
       - "--exclude=.git"
 
 - name: "Copy mit-testssl.sh (Zabbix wrapper script)"
-  become: yes
   copy: src=mit-testssl.sh dest=/usr/lib/zabbix/externalscripts/mit-testssl.sh mode=755
 
 - name: Install python-pip
@@ -20,10 +18,8 @@
   pip: name=pyzabbix
 
 - name: "Copy zabbix-mit-testssl-caller"
-  become: yes
   copy: src=zabbix-mit-testssl-caller dest=/usr/local/bin/ mode=755
 
 - name: "Copy cronjob"
-  become: yes
   copy: src=local-zabbix-mit-testssl-caller dest=/etc/cron.d/
 

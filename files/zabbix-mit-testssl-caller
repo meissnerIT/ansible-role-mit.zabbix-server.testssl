@@ -16,15 +16,20 @@ import logging
 # https://github.com/lukecyca/pyzabbix
 from pyzabbix import ZabbixAPI
 
-stream = logging.StreamHandler(sys.stdout)
-stream.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+shStdout = logging.StreamHandler(sys.stdout)
+shStdout.setFormatter(formatter)
+shStderr = logging.StreamHandler(sys.stderr)
+shStderr.setFormatter(formatter)
+shStderr.setLevel(logging.ERROR)
 
 log = logging.getLogger(os.path.basename(__file__))
-log.addHandler(stream)
+log.addHandler(shStdout)
+log.addHandler(shStderr)
 log.setLevel(logging.INFO)
 
 #logpz = logging.getLogger('pyzabbix')
-#logpz.addHandler(stream)
+#logpz.addHandler(shStdout)
 #logpz.setLevel(logging.DEBUG)
 
 configParser = ConfigParser.RawConfigParser()   
@@ -77,7 +82,7 @@ for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid"):
             log.debug("Called %s, got %s" % (zabbixSenderCmd, zabbixSenderOutput))
             log.info("Transmitted result '%s' for %s to zabbix server" % (testsslOutput, host))
         except:
-            log.warn("Got error while executing %s" % (zabbixSenderCmd))
-            log.warn(zabbixSenderOutput)
+            log.error("Got error while executing %s" % (zabbixSenderCmd))
+            log.error(zabbixSenderOutput)
 log.info("READY.")
 
