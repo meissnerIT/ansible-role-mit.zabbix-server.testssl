@@ -51,7 +51,7 @@ log.debug("Connected to Zabbix API Version %s" % zapi.api_version())
 #print('Got templateid %s' % templateid)
 
 # sort in order to get the same order within every call, makes debugging easier
-for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid"):
+for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid", monitored="true"):
     hostid=item["hostid"]
     host1 = zapi.host.get(hostids=item["hostid"])
     if host1:
