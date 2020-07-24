@@ -8,8 +8,15 @@
     rsync_opts:
       - "--exclude=.git"
 
-- name: "Copy mit-testssl.sh (Zabbix wrapper script)"
-  copy: src=mit-testssl.sh dest=/usr/lib/zabbix/externalscripts/mit-testssl.sh mode=755
+- name: Copy wrapper scripts
+  copy:
+    src: "{{ item }}"
+    dest: /usr/lib/zabbix/externalscripts/
+    mode: 0755
+  loop:
+    - mit-check-cert.py
+    - mit-check-cert.sh
+    - mit-testssl.sh
 
 - name: Install python-pip
   apt: pkg=python-pip
