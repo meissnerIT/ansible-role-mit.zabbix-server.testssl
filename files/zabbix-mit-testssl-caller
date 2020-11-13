@@ -42,6 +42,9 @@ zabbix_host = configParser.get('DEFAULT', 'zabbix.host')
 
 # https://stackoverflow.com/questions/419163/what-does-if-name-main-do
 zapi = ZabbixAPI(zabbix_api_url)
+if configParser.has_option('DEFAULT', 'zabbix-api.verify'):
+    # https://requests.readthedocs.io/en/master/user/advanced/#ssl-cert-verification
+    zapi.session.verify = configParser.get('DEFAULT', 'zabbix-api.verify')
 zapi.login(zabbix_api_user, zabbix_api_password)
 log.debug("Connected to Zabbix API Version %s" % zapi.api_version())
 
