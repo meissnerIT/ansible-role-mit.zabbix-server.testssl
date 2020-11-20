@@ -7,6 +7,8 @@
 # Finds all hosts using mit-testssl.sh via Zabbix API, runs testssl.sh
 # and reports back via zabbix_sender.
 # Idempotent - can be called as often as you wish.
+#
+# v2020-11-19-1
 
 import ConfigParser
 import os
@@ -48,8 +50,8 @@ if configParser.has_option('DEFAULT', 'zabbix-api.verify'):
 zapi.login(zabbix_api_user, zabbix_api_password)
 log.debug("Connected to Zabbix API Version %s" % zapi.api_version())
 
-#template = zapi.template.get(search={ "host": "Template App HTTPS Service*testssl" })
-#template = zapi.template.get(search={ "host": "Template App HTTPS Service testssl" }, output=["templateid"])
+#template = zapi.template.get(search={ "host": "Template App TLS Service*testssl" })
+#template = zapi.template.get(search={ "host": "Template App TLS Service testssl" }, output=["templateid"])
 #templateid=template[0]['templateid']
 #print('Got templateid %s' % templateid)
 
@@ -59,7 +61,7 @@ for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid", 
     host1 = zapi.host.get(hostids=item["hostid"])
     if host1:
         host = host1[0]['host']
-        usermacroHttpsPort = zapi.usermacro.get(hostids=hostid, filter={ "macro": "{$HTTPS_PORT}"})
+        usermacroHttpsPort = zapi.usermacro.get(hostids=hostid, filter={ "macro": "{$TLS_PORT}"})
         if usermacroHttpsPort:
             httpsport = usermacroHttpsPort[0]["value"]
         else:
