@@ -77,7 +77,7 @@ for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid", 
         testsslCmd = ["/usr/lib/zabbix/externalscripts/mit-testssl.sh", url]
         #testsslCmd = ["echo"]
         log.debug("Executing %s for %s (id=%s)" % (testsslCmd, host, hostid))
-        log.info("Checking %s" % (host))
+        log.info("Checking %s via %s" % (host, url))
         testsslOutput = subprocess.check_output(testsslCmd).strip()
         log.debug("Got '%s' from %s" % (testsslOutput, testsslCmd))
         zabbixSenderCmd = [r'zabbix_sender', '-z', zabbix_host, '-s', host, '-k', 'mit-testssl.sh', '-o', '%s' % (testsslOutput)]
