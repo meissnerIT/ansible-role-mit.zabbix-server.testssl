@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+#
+# Distributed via ansible - mit.zabbix-server.testssl
+#
+# Helper script to call testssl.sh
+#
+# Called via:
+#
+# zabbix-mit-testssl-caller -> zabbix-mit-testssl -> zabbix-mit-testssl-helper
+#
+# v2021-10-05-1
+
+set -e
+
+if [ $# -ne 2 ]; then
+    echo "Usage: $0 <protocol> <URI>"
+    echo '    where protocol is "http" or a starttls protocoll like "smtp"'
+    echo "    e.g.: $0 http www.meissner.it"
+    echo "    e.g.: $0 smtp mail.meissner.it:25"
+    exit 1
+fi
+
+# 192.168.7.47:443 doesn't seem to be a TLS/SSL enabled server
+# The results might look ok but they could be nonsense. Really proceed ? ("yes" to continue) -->
+TESTSSL_EXTRA_PARAMS=" --warnings batch"
+
+if [ "$1" != "http" ]; then
+    TESTSSL_EXTRA_PARAMS="$TESTSSL_EXTRA_PARAMS --starttls $1"
+    STARTTLS="$1"
+fi
+
+CA_CERT=$(awk '/^zabbix-api.verify/ { print $3; }' < /etc/zabbix/zabbix_agentd-mit-testssl.sh.conf)
+if [ ! -z "$CA_CERT" ]; then
+    TESTSSL_EXTRA_PARAMS="$TESTSSL_EXTRA_PARAMS --add-ca $CA_CERT"
+fi
+
+URI=$2
+
+# Ensure exit-code 0 even if grep fails
+
+# Result is in parentheses
+# cat /tmp/testssl.sh-result-www.meissner.it \
+# [Secure Client-Initiated Renegotiation - Issue #532 - drwetter/testssl.sh](https://github.com/drwetter/testssl.sh/issues/532) -> High impact on http, low on starttls like smtp
+if [ -z "${STARTTLS}" ]; then
+    /usr/local/share/testssl.sh/testssl.sh --vulnerable --color 0 --quiet ${TESTSSL_EXTRA_PARAMS} ${URI} \
+        | grep "(NOT ok)" || true
+else
+    /usr/local/share/testssl.sh/testssl.sh --vulnerable --color 0 --quiet ${TESTSSL_EXTRA_PARAMS} ${URI} \
+        | grep -v "Secure Client-Initiated Renegotiation" \
+        | grep "(NOT ok)" || true
+fi
+
+# Both results are in parentheses
+/usr/local/share/testssl.sh/testssl.sh --protocols --color 0 --quiet ${TESTSSL_EXTRA_PARAMS} ${URI} \
+    | egrep "\((NOT ok|deprecated)\)" | paste -s -d, | xargs || true
+
+# Results are witout parentheses:
+#  Chain of trust               NOT ok (expired)
+# [[BUG] included openssl binaries report expired chain of trust for letsencrypt certificates · Issue #1995 · drwetter/testssl.sh · GitHub](https://github.com/drwetter/testssl.sh/issues/1995) -> Remove "--openssl" when fixed (e.g. testssl.sh v3.1)
+/usr/local/share/testssl.sh/testssl.sh --server-defaults --color 0 --quiet --openssl /usr/bin/openssl ${TESTSSL_EXTRA_PARAMS} ${URI} \
+    | grep "NOT ok" | paste -s -d, | xargs || true
+

@@ -2,13 +2,14 @@
 #
 # Distributed via ansible - mit.zabbix-server.testssl
 #
-#17257: Zabbix Test fuer TLS/SSL Verschluesselung
+# #17257: Finds all hosts using mit-testssl-* (like mit-testssl-http or 
+# mit-testssl-smtp) via Zabbix API and runs zabbix-mit-testssl <host> <protocol>
 #
-# Finds all hosts using mit-testssl.sh via Zabbix API, runs testssl.sh
-# and reports back via zabbix_sender.
 # Idempotent - can be called as often as you wish.
 #
-# v2020-11-19-1
+# zabbix-mit-testssl-caller -> zabbix-mit-testssl -> zabbix-mit-testssl-helper
+#
+# v2021-10-05-1: Calls now zabbix-mit-testssl
 
 import ConfigParser
 import os
@@ -42,6 +43,8 @@ zabbix_api_password = configParser.get('DEFAULT', 'zabbix-api.password')
 zabbix_api_url = configParser.get('DEFAULT', 'zabbix-api.url')
 zabbix_host = configParser.get('DEFAULT', 'zabbix.host')
 
+log.info("Starting")
+
 # https://stackoverflow.com/questions/419163/what-does-if-name-main-do
 zapi = ZabbixAPI(zabbix_api_url)
 if configParser.has_option('DEFAULT', 'zabbix-api.verify'):
@@ -58,36 +61,22 @@ log.debug("Connected to Zabbix API Version %s" % zapi.api_version())
 # sort in order to get the same order within every call, makes debugging easier
 for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid", monitored="true"):
     hostid=item["hostid"]
-    host1 = zapi.host.get(hostids=item["hostid"])
-    if host1:
-        host = host1[0]['host']
-        usermacroHttpsPort = zapi.usermacro.get(hostids=hostid, filter={ "macro": "{$TLS_PORT}"})
-        if usermacroHttpsPort:
-            httpsport = usermacroHttpsPort[0]["value"]
+    hosts = zapi.host.get(hostids=item["hostid"])
+    if hosts:
+        host = hosts[0]['host']
+        #log.debug("Got %s (id=%s) with %s:%s"% (hosts[0]['host'], hostid, hostconn, httpsport))
+        if item["key_"] == "mit-testssl-http":
+            protocol = "http"
+        elif item["key_"] == "mit-testssl-smtp":
+            protocol = "smtp"
         else:
-            httpsport = 443
-        hostinterface = zapi.hostinterface.get(hostids=hostid)
-	log.debug(hostinterface)
-        if hostinterface[0]['useip']=='1':
-            hostconn = hostinterface[0]['ip']
-        else:
-            hostconn = hostinterface[0]['dns']
-        #log.debug("Got %s (id=%s) with %s:%s"% (host1[0]['host'], hostid, hostconn, httpsport))
-        url = "https://%s:%s" % (hostconn, httpsport)
-        testsslCmd = ["/usr/lib/zabbix/externalscripts/mit-testssl.sh", url]
-        #testsslCmd = ["echo"]
-        log.debug("Executing %s for %s (id=%s)" % (testsslCmd, host, hostid))
-        log.info("Checking %s via %s" % (host, url))
-        testsslOutput = subprocess.check_output(testsslCmd).strip()
-        log.debug("Got '%s' from %s" % (testsslOutput, testsslCmd))
-        zabbixSenderCmd = [r'zabbix_sender', '-z', zabbix_host, '-s', host, '-k', 'mit-testssl.sh', '-o', '%s' % (testsslOutput)]
-        log.debug("Executing %s" % zabbixSenderCmd)
-        try:
-            zabbixSenderOutput = subprocess.check_output(zabbixSenderCmd).strip()
-            log.debug("Called %s, got %s" % (zabbixSenderCmd, zabbixSenderOutput))
-            log.info("Transmitted result '%s' for %s to zabbix server" % (testsslOutput, host))
-        except:
-            log.error("Got error while executing %s" % (zabbixSenderCmd))
-            log.error(zabbixSenderOutput)
+            log.error("Item with key=%s not supported" % item["key_"])
+        if protocol:
+            testsslCmd = ["/usr/local/bin/zabbix-mit-testssl", protocol, host]
+            #testsslCmd = ["echo"]
+            log.debug("Executing %s for %s (id=%s)" % (testsslCmd, host, hostid))
+            testsslOutput = subprocess.check_output(testsslCmd).strip()
+            log.info("Output from %s: \n%s" % (testsslCmd, testsslOutput))
+
 log.info("READY.")
 
