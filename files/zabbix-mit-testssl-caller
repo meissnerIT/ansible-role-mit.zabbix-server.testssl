@@ -67,6 +67,8 @@ for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid", 
         #log.debug("Got %s (id=%s) with %s:%s"% (hosts[0]['host'], hostid, hostconn, httpsport))
         if item["key_"] == "mit-testssl-http":
             protocol = "http"
+        elif item["key_"] == "mit-testssl-imap":
+            protocol = "imap"
         elif item["key_"] == "mit-testssl-smtp":
             protocol = "smtp"
         else:
