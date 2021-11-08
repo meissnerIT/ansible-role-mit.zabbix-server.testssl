@@ -2,8 +2,8 @@
 
 - name: "rsync testssl.sh (directory, distribution)"
   synchronize: 
-    src: testssl.sh
-    dest: /usr/local/share/
+    src: testssl.sh/
+    dest: /usr/local/share/testssl.sh/
     delete: yes
     rsync_opts:
       - "--exclude=.git"
@@ -18,10 +18,12 @@
     - mit-check-cert.sh
 
 - name: Install python-pip
-  apt: pkg=python-pip
+  apt:
+    pkg: python-pip
 
 - name: Install pyzabbix via pip
-  pip: name=pyzabbix
+  pip:
+    name: pyzabbix
 
 - name: Copy zabbix-mit-testssl*
   copy:
