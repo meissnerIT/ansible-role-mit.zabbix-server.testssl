@@ -19,10 +19,16 @@
 
 - name: Install python-pip
   apt:
-    pkg: python-pip
+    pkg: python-pip,python3-pip
 
 - name: Install pyzabbix via pip
   pip:
+    name: pyzabbix
+
+# zabbix-mit-testssl
+- name: Install pyzabbix via pip3
+  pip:
+    executable: pip3
     name: pyzabbix
 
 - name: Copy zabbix-mit-testssl*
