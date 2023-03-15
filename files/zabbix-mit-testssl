@@ -2,9 +2,9 @@
 #
 # Distributed via ansible - mit.zabbix-server.testssl
 #
-# #17257: Checks given host via zabbix-mit-testssl-helper (which calls 
+# #17257: Checks given host via zabbix-mit-testssl-helper (which calls
 # testssl.sh) and reports back via zabbix_sender.
-# 
+#
 # Idempotent - can be called as often as you wish.
 #
 # zabbix-mit-testssl-caller -> zabbix-mit-testssl -> zabbix-mit-testssl-helper
@@ -14,7 +14,7 @@
 # zabbix-mit-testssl smtp mail.meissner.it
 # zabbix-mit-testssl imap mail.meissner.it
 #
-# v2021-11-08-1
+# v2023-03-15: Updated pyzabbix configuration
 
 # https://www.askpython.com/python/python-command-line-arguments
 import argparse
@@ -23,6 +23,7 @@ import os
 import subprocess
 import sys
 import logging
+import urllib3
 # https://github.com/lukecyca/pyzabbix
 from pyzabbix import ZabbixAPI
 
@@ -46,18 +47,23 @@ args = parser.parse_args()
 configParser = configparser.RawConfigParser()
 configFilePath = r'/etc/zabbix/zabbix_agentd-mit-testssl.sh.conf'
 configParser.read(configFilePath)
-zabbix_api_user = configParser.get('DEFAULT', 'zabbix-api.user')
-zabbix_api_password = configParser.get('DEFAULT', 'zabbix-api.password')
-zabbix_api_url = configParser.get('DEFAULT', 'zabbix-api.url')
-zabbix_host = configParser.get('DEFAULT', 'zabbix.host')
 
+##############################################################################
+# mit-pyzabbix.py v2023-03-15
+##############################################################################
 # detect_version=False - https://github.com/lukecyca/pyzabbix/issues/157
-zapi = ZabbixAPI(zabbix_api_url, detect_version=False)
+zapi = ZabbixAPI(configParser.get('DEFAULT', 'zabbix-api.url'), detect_version=False)
 if configParser.has_option('DEFAULT', 'zabbix-api.verify'):
     # https://requests.readthedocs.io/en/master/user/advanced/#ssl-cert-verification
     zapi.session.verify = configParser.get('DEFAULT', 'zabbix-api.verify')
+elif not configParser.getboolean('DEFAULT', 'zabbix-api.certificate_verification', fallback=True):
+    # https://urllib3.readthedocs.io/en/latest/advanced-usage.html#ssl-warnings
+    urllib3.disable_warnings()
+    zapi.session.verify = False
+    log.info("Disabled certificate verification - please don't use this in production!")
 
-zapi.login(zabbix_api_user, zabbix_api_password)
+
+zapi.login(configParser.get('DEFAULT', 'zabbix-api.user'), configParser.get('DEFAULT', 'zabbix-api.password'))
 log.debug("Connected to Zabbix API Version %s" % zapi.api_version())
 
 hosts = zapi.host.get(filter={"host": args.host})
@@ -109,7 +115,7 @@ testsslCmdCompleted = subprocess.run(testsslCmd, stdout = subprocess.PIPE, stder
 if testsslCmdCompleted.returncode == 0 and len(testsslCmdCompleted.stderr) == 0:
     testsslOutput = testsslCmdCompleted.stdout.decode('utf-8').strip()
     log.debug("Got '%s' from %s" % (testsslOutput, testsslCmd))
-    zabbixSenderCmd = [r'zabbix_sender', '-z', zabbix_host, '-s', host['host'], '-k', 'mit-testssl-' + args.protocol, '-o', '%s' % (testsslOutput)]
+    zabbixSenderCmd = [r'zabbix_sender', '-z', configParser.get('DEFAULT', 'zabbix.host'), '-s', host['host'], '-k', 'mit-testssl-' + args.protocol, '-o', '%s' % (testsslOutput)]
     log.debug("Executing %s" % zabbixSenderCmd)
     try:
         zabbixSenderOutput = subprocess.check_output(zabbixSenderCmd).strip()
@@ -122,4 +128,3 @@ else:
     log.warning("Got returncode %s and stderr='%s' while checking %s" % (testsslCmdCompleted.returncode, testsslCmdCompleted.stderr.decode('utf-8'), host['host']))
     # Do nothing, Zabbix has a trigger for nodata(2d)
 log.info("READY.")
-
