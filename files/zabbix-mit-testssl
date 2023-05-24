@@ -15,6 +15,7 @@
 # zabbix-mit-testssl imap mail.meissner.it
 #
 # v2023-03-15: Updated pyzabbix configuration
+# v2023-05-09: Removed detect_version=False, no longer needed for pyzabbix 1.3.0
 
 # https://www.askpython.com/python/python-command-line-arguments
 import argparse
@@ -49,10 +50,11 @@ configFilePath = r'/etc/zabbix/zabbix_agentd-mit-testssl.sh.conf'
 configParser.read(configFilePath)
 
 ##############################################################################
-# mit-pyzabbix.py v2023-03-15
+# mit-pyzabbix.py v2023-05-09
 ##############################################################################
-# detect_version=False - https://github.com/lukecyca/pyzabbix/issues/157
-zapi = ZabbixAPI(configParser.get('DEFAULT', 'zabbix-api.url'), detect_version=False)
+# https://github.com/lukecyca/pyzabbix/issues/157
+# detect_version=False only needed for pyzabbix < 1.3
+zapi = ZabbixAPI(configParser.get('DEFAULT', 'zabbix-api.url'))
 if configParser.has_option('DEFAULT', 'zabbix-api.verify'):
     # https://requests.readthedocs.io/en/master/user/advanced/#ssl-cert-verification
     zapi.session.verify = configParser.get('DEFAULT', 'zabbix-api.verify')
@@ -61,7 +63,6 @@ elif not configParser.getboolean('DEFAULT', 'zabbix-api.certificate_verification
     urllib3.disable_warnings()
     zapi.session.verify = False
     log.info("Disabled certificate verification - please don't use this in production!")
-
 
 zapi.login(configParser.get('DEFAULT', 'zabbix-api.user'), configParser.get('DEFAULT', 'zabbix-api.password'))
 log.debug("Connected to Zabbix API Version %s" % zapi.api_version())
@@ -125,6 +126,7 @@ if testsslCmdCompleted.returncode == 0 and len(testsslCmdCompleted.stderr) == 0:
         log.error("Got error while executing %s" % (zabbixSenderCmd))
         log.error(zabbixSenderOutput)
 else:
-    log.warning("Got returncode %s and stderr='%s' while checking %s" % (testsslCmdCompleted.returncode, testsslCmdCompleted.stderr.decode('utf-8'), host['host']))
+    log.warning(f"Got returncode {testsslCmdCompleted.returncode} and stderr='{testsslCmdCompleted.stderr.decode('utf-8')}' while checking host['host'] via {testsslCmd}")
     # Do nothing, Zabbix has a trigger for nodata(2d)
 log.info("READY.")
+

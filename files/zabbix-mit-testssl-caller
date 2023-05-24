@@ -9,15 +9,14 @@
 #
 # zabbix-mit-testssl-caller -> zabbix-mit-testssl -> zabbix-mit-testssl-helper
 #
-# v2021-10-05: Calls now zabbix-mit-testssl
-# v2023-03-15: Updated pyzabbix configuration
+# 2021-10-05: Calls now zabbix-mit-testssl
+# 2023-05-09: Upgrade to python3, pyzabbix 1.3.0
 
 import configparser
 import os
 import subprocess
 import sys
 import logging
-import urllib3
 # https://github.com/lukecyca/pyzabbix
 from pyzabbix import ZabbixAPI
 
@@ -44,10 +43,11 @@ configParser.read(configFilePath)
 log.info("Starting")
 
 ##############################################################################
-# mit-pyzabbix.py v2023-03-15
+# mit-pyzabbix.py v2023-05-09
 ##############################################################################
-# detect_version=False - https://github.com/lukecyca/pyzabbix/issues/157
-zapi = ZabbixAPI(configParser.get('DEFAULT', 'zabbix-api.url'), detect_version=False)
+# https://github.com/lukecyca/pyzabbix/issues/157
+# detect_version=False only needed for pyzabbix < 1.3
+zapi = ZabbixAPI(configParser.get('DEFAULT', 'zabbix-api.url'))
 if configParser.has_option('DEFAULT', 'zabbix-api.verify'):
     # https://requests.readthedocs.io/en/master/user/advanced/#ssl-cert-verification
     zapi.session.verify = configParser.get('DEFAULT', 'zabbix-api.verify')
@@ -57,14 +57,8 @@ elif not configParser.getboolean('DEFAULT', 'zabbix-api.certificate_verification
     zapi.session.verify = False
     log.info("Disabled certificate verification - please don't use this in production!")
 
-
 zapi.login(configParser.get('DEFAULT', 'zabbix-api.user'), configParser.get('DEFAULT', 'zabbix-api.password'))
 log.debug("Connected to Zabbix API Version %s" % zapi.api_version())
-
-#template = zapi.template.get(search={ "host": "Template App TLS Service*testssl" })
-#template = zapi.template.get(search={ "host": "Template App TLS Service testssl" }, output=["templateid"])
-#templateid=template[0]['templateid']
-#print('Got templateid %s' % templateid)
 
 # sort in order to get the same order within every call, makes debugging easier
 for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid", monitored="true"):
