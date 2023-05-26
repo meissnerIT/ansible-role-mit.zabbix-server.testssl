@@ -61,7 +61,7 @@ zapi.login(configParser.get('DEFAULT', 'zabbix-api.user'), configParser.get('DEF
 log.debug("Connected to Zabbix API Version %s" % zapi.api_version())
 
 # sort in order to get the same order within every call, makes debugging easier
-for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid", monitored="true"):
+for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid", monitored="1"):
     hostid=item["hostid"]
     hosts = zapi.host.get(hostids=item["hostid"])
     if hosts:
