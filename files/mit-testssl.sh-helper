@@ -20,6 +20,7 @@ if [ $# -ne 2 ]; then
     exit 1
 fi
 
+TESTSSL_SH=/opt/mit-testssl.sh/testssl.sh/testssl.sh
 # 192.168.7.47:443 doesn't seem to be a TLS/SSL enabled server
 # The results might look ok but they could be nonsense. Really proceed ? ("yes" to continue) -->
 TESTSSL_EXTRA_PARAMS=" --warnings batch"
@@ -29,10 +30,9 @@ if [ "$1" != "http" ]; then
     STARTTLS="$1"
 fi
 
-CA_CERT=$(awk '/^zabbix-api.verify/ { print $3; }' < /etc/zabbix/zabbix_agentd-mit-testssl.sh.conf)
-if [ ! -z "$CA_CERT" ]; then
+for CA_CERT in $(find /etc/opt/mit-testssl.sh/ca-certificates -maxdepth 1 -type f); do
     TESTSSL_EXTRA_PARAMS="$TESTSSL_EXTRA_PARAMS --add-ca $CA_CERT"
-fi
+done
 
 URI=$2
 
@@ -42,21 +42,21 @@ URI=$2
 # cat /tmp/testssl.sh-result-www.meissner.it \
 # [Secure Client-Initiated Renegotiation - Issue #532 - drwetter/testssl.sh](https://github.com/drwetter/testssl.sh/issues/532) -> High impact on http, low on starttls like smtp
 if [ -z "${STARTTLS}" ]; then
-    /usr/local/share/testssl.sh/testssl.sh --vulnerable --color 0 --quiet ${TESTSSL_EXTRA_PARAMS} ${URI} \
+    ${TESTSSL_SH} --vulnerable --color 0 --quiet ${TESTSSL_EXTRA_PARAMS} ${URI} \
         | grep "(NOT ok)" || true
 else
-    /usr/local/share/testssl.sh/testssl.sh --vulnerable --color 0 --quiet ${TESTSSL_EXTRA_PARAMS} ${URI} \
+    ${TESTSSL_SH} --vulnerable --color 0 --quiet ${TESTSSL_EXTRA_PARAMS} ${URI} \
         | grep -v "Secure Client-Initiated Renegotiation" \
         | grep "(NOT ok)" || true
 fi
 
 # Both results are in parentheses
-/usr/local/share/testssl.sh/testssl.sh --protocols --color 0 --quiet ${TESTSSL_EXTRA_PARAMS} ${URI} \
+${TESTSSL_SH} --protocols --color 0 --quiet ${TESTSSL_EXTRA_PARAMS} ${URI} \
     | egrep "\((NOT ok|deprecated)\)" | paste -s -d, | xargs || true
 
 # Results are witout parentheses:
 #  Chain of trust               NOT ok (expired)
 # [[BUG] included openssl binaries report expired chain of trust for letsencrypt certificates · Issue #1995 · drwetter/testssl.sh · GitHub](https://github.com/drwetter/testssl.sh/issues/1995) -> Remove "--openssl" when fixed (e.g. testssl.sh v3.1)
-/usr/local/share/testssl.sh/testssl.sh --server-defaults --color 0 --quiet --openssl /usr/bin/openssl ${TESTSSL_EXTRA_PARAMS} ${URI} \
+${TESTSSL_SH} --server-defaults --color 0 --quiet --openssl /usr/bin/openssl ${TESTSSL_EXTRA_PARAMS} ${URI} \
     | grep "NOT ok" | paste -s -d, | xargs || true
 

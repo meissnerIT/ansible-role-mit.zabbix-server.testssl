@@ -1,9 +1,31 @@
 ---
 
+- name: Copy requirements.txt
+  copy:
+    src: requirements.txt
+    dest: /opt/mit-testssl.sh/
+
+- name: Install python3-venv
+  apt:
+    pkg: python3-venv
+
+- name: Install pip in venv
+  pip:
+    name: pip
+    virtualenv: /opt/mit-testssl.sh/.venv
+    virtualenv_command: python3 -m venv
+
+- name: Updated python dependencies (requirements.txt)
+  pip:
+    virtualenv_command: python3 -m venv
+    requirements: /opt/mit-testssl.sh/requirements.txt
+    virtualenv: /opt/mit-testssl.sh/.venv
+  environment: "{{ proxy_env }}"
+
 - name: "rsync testssl.sh (directory, distribution)"
   synchronize: 
     src: testssl.sh/
-    dest: /usr/local/share/testssl.sh/
+    dest: /opt/mit-testssl.sh/testssl.sh/
     delete: yes
     rsync_opts:
       - "--exclude=.git"
@@ -17,28 +39,29 @@
     - mit-check-cert.py
     - mit-check-cert.sh
 
-- name: Install python3-pip
-  apt:
-    pkg: python3-pip
-
-# zabbix-mit-testssl
-- name: Install pyzabbix via pip3
-  pip:
-    executable: pip3
-    name: pyzabbix>=1.3.0
-
-- name: Copy zabbix-mit-testssl*
+- name: Copy mit-testssl.sh*
   copy:
-    src: "{{ item}}"
-    dest: /usr/local/bin/
+    src: "{{ item }}"
+    dest: /opt/mit-testssl.sh/bin/
     mode: 0755    
   loop:
-    - zabbix-mit-testssl
-    - zabbix-mit-testssl-caller
-    - zabbix-mit-testssl-helper
+    - mit-testssl.sh
+    - mit-testssl.sh-caller
+    - mit-testssl.sh-helper
+
+- name: Remove deprecated files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/cron.d/local-zabbix-mit-testssl-caller
+    - /usr/local/bin/zabbix-mit-testssl
+    - /usr/local/bin/zabbix-mit-testssl-caller
+    - /usr/local/bin/zabbix-mit-testssl-helper
+    - /var/log/zabbix/zabbix-mit-testssl-caller.log
 
 - name: "Copy cronjob"
   copy:
-    src: local-zabbix-mit-testssl-caller
+    src: local-zabbix-mit-testssl.sh-caller
     dest: /etc/cron.d/
 

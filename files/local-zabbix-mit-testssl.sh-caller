@@ -2,5 +2,5 @@
 MAILTO="support@meissner.it"
 
 #17257: Zabbix Test fuer TLS/SSL Verschluesselung
-@daily  zabbix  /usr/local/bin/zabbix-mit-testssl-caller > /var/log/zabbix/zabbix-mit-testssl-caller.log
+@daily  zabbix  /opt/mit-testssl.sh/bin/mit-testssl.sh-caller > /var/log/zabbix/mit-testssl.sh-caller.log
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/opt/mit-testssl.sh/.venv/bin/python3
 #
 # Distributed via ansible - mit.zabbix-server.testssl
 #
@@ -11,12 +11,13 @@
 #
 # 2021-10-05: Calls now zabbix-mit-testssl
 # 2023-05-09: Upgrade to python3, pyzabbix 1.3.0
-
+import argparse
 import configparser
 import os
 import subprocess
 import sys
 import logging
+import urllib3
 # https://github.com/lukecyca/pyzabbix
 from pyzabbix import ZabbixAPI
 
@@ -36,14 +37,22 @@ log.setLevel(logging.INFO)
 #logpz.addHandler(shStdout)
 #logpz.setLevel(logging.DEBUG)
 
+##############################################################################
+# Read command line arguments
+##############################################################################
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--config_file", default="/etc/opt/mit-testssl.sh/mit-testssl.sh.conf")
+args = parser.parse_args()
+
 configParser = configparser.RawConfigParser()
-configFilePath = r'/etc/zabbix/zabbix_agentd-mit-testssl.sh.conf'
+configFilePath = args.config_file
 configParser.read(configFilePath)
 
 log.info("Starting")
 
 ##############################################################################
-# mit-pyzabbix.py v2023-05-09
+# mit-pyzabbix.py v2023-09-20
 ##############################################################################
 # https://github.com/lukecyca/pyzabbix/issues/157
 # detect_version=False only needed for pyzabbix < 1.3
@@ -57,8 +66,27 @@ elif not configParser.getboolean('DEFAULT', 'zabbix-api.certificate_verification
     zapi.session.verify = False
     log.info("Disabled certificate verification - please don't use this in production!")
 
+# https://requests.readthedocs.io/en/latest/user/advanced/#proxies
+if configParser.has_option('DEFAULT', 'zabbix-api.proxy'):
+    proxies = {
+        'http': configParser.get('DEFAULT', 'zabbix-api.proxy'),
+        'https': configParser.get('DEFAULT', 'zabbix-api.proxy')
+    }
+    zapi.session.proxies.update(proxies)
+
 zapi.login(configParser.get('DEFAULT', 'zabbix-api.user'), configParser.get('DEFAULT', 'zabbix-api.password'))
 log.debug("Connected to Zabbix API Version %s" % zapi.api_version())
+
+only_check_hosts_on_proxy = configParser.get('DEFAULT', 'zabbix-api.only_check_hosts_on_proxy', fallback='')
+if only_check_hosts_on_proxy:
+    proxy = zapi.proxy.get(search={ "host": only_check_hosts_on_proxy })
+    if proxy:
+        proxy_id = int(proxy[0]['proxyid'])
+        log.info(f"Only checking hosts with proxy_hostid={proxy_id} ({only_check_hosts_on_proxy})")
+    else:
+        raise ValueError(f"Could not find zabbix-api.only_proxy={only_check_hosts_on_proxy}!")
+else:
+    proxy_id = 0
 
 # sort in order to get the same order within every call, makes debugging easier
 for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid", monitored="1"):
@@ -66,20 +94,22 @@ for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid", 
     hosts = zapi.host.get(hostids=item["hostid"])
     if hosts:
         host = hosts[0]['host']
-        #log.debug("Got %s (id=%s) with %s:%s"% (hosts[0]['host'], hostid, hostconn, httpsport))
-        if item["key_"] == "mit-testssl-http":
-            protocol = "http"
-        elif item["key_"] == "mit-testssl-imap":
-            protocol = "imap"
-        elif item["key_"] == "mit-testssl-smtp":
-            protocol = "smtp"
+        if int(hosts[0]['proxy_hostid']) == proxy_id:
+            #log.debug("Got %s (id=%s) with %s:%s"% (hosts[0]['host'], hostid, hostconn, httpsport))
+            if item["key_"] == "mit-testssl-http":
+                protocol = "http"
+            elif item["key_"] == "mit-testssl-imap":
+                protocol = "imap"
+            elif item["key_"] == "mit-testssl-smtp":
+                protocol = "smtp"
+            else:
+                log.error("Item with key=%s not supported" % item["key_"])
+            if protocol:
+                testsslCmd = ["/opt/mit-testssl.sh/bin/mit-testssl.sh", protocol, host]
+                #testsslCmd = ["echo"]
+                log.debug("Executing %s for %s (id=%s)" % (testsslCmd, host, hostid))
+                testsslOutput = subprocess.check_output(testsslCmd).strip()
+                log.info("Output from %s: \n%s" % (testsslCmd, testsslOutput))
         else:
-            log.error("Item with key=%s not supported" % item["key_"])
-        if protocol:
-            testsslCmd = ["/usr/local/bin/zabbix-mit-testssl", protocol, host]
-            #testsslCmd = ["echo"]
-            log.debug("Executing %s for %s (id=%s)" % (testsslCmd, host, hostid))
-            testsslOutput = subprocess.check_output(testsslCmd).strip()
-            log.info("Output from %s: \n%s" % (testsslCmd, testsslOutput))
-
+            log.info("%s with %s will be checked on proxy %s" % (host, item["key_"], hosts[0]['proxy_hostid']))
 log.info("READY.")
