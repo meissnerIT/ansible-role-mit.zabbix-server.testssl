@@ -55,6 +55,7 @@
     state: absent
   loop:
     - /etc/cron.d/local-zabbix-mit-testssl-caller
+    - /etc/cron.d/local-zabbix-mit-testssl.sh-caller
     - /usr/local/bin/zabbix-mit-testssl
     - /usr/local/bin/zabbix-mit-testssl-caller
     - /usr/local/bin/zabbix-mit-testssl-helper
@@ -62,6 +63,7 @@
 
 - name: "Copy cronjob"
   copy:
-    src: local-zabbix-mit-testssl.sh-caller
+    # without dot as the dot prevents it from beeing executed
+    src: local-zabbix-mit-testssl-sh-caller
     dest: /etc/cron.d/
 
