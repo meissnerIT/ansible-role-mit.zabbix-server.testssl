@@ -30,9 +30,11 @@ if [ "$1" != "http" ]; then
     STARTTLS="$1"
 fi
 
-for CA_CERT in $(find /etc/opt/mit-testssl.sh/ca-certificates -maxdepth 1 -type f); do
-    TESTSSL_EXTRA_PARAMS="$TESTSSL_EXTRA_PARAMS --add-ca $CA_CERT"
-done
+if [ -d /etc/opt/mit-testssl.sh/ca-certificates ]; then
+    for CA_CERT in $(find /etc/opt/mit-testssl.sh/ca-certificates -maxdepth 1 -type f); do
+        TESTSSL_EXTRA_PARAMS="$TESTSSL_EXTRA_PARAMS --add-ca $CA_CERT"
+    done
+fi
 
 URI=$2
 
