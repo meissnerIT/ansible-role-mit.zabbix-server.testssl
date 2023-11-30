@@ -31,8 +31,14 @@ if [ "$1" != "http" ]; then
 fi
 
 if [ -d /etc/opt/mit-testssl.sh/ca-certificates ]; then
+    first=1
     for CA_CERT in $(find /etc/opt/mit-testssl.sh/ca-certificates -maxdepth 1 -type f); do
-        TESTSSL_EXTRA_PARAMS="$TESTSSL_EXTRA_PARAMS --add-ca $CA_CERT"
+        if [ $first -eq 1 ]; then
+            TESTSSL_EXTRA_PARAMS="$TESTSSL_EXTRA_PARAMS --add-ca $CA_CERT"
+            first=0
+        else
+            TESTSSL_EXTRA_PARAMS="$TESTSSL_EXTRA_PARAMS,$CA_CERT"
+        fi
     done
 fi
 
