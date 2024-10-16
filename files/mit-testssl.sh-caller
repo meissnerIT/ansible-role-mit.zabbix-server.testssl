@@ -11,6 +11,8 @@
 #
 # 2021-10-05: Calls now zabbix-mit-testssl
 # 2023-05-09: Upgrade to python3, pyzabbix 1.3.0
+# 2024-09-19: Added support for zabbix-7
+
 import argparse
 import configparser
 import os
@@ -77,13 +79,26 @@ if configParser.has_option('DEFAULT', 'zabbix-api.proxy'):
 zapi.login(configParser.get('DEFAULT', 'zabbix-api.user'), configParser.get('DEFAULT', 'zabbix-api.password'))
 log.debug("Connected to Zabbix API Version %s" % zapi.api_version())
 
+if zapi.version.major < 7:
+    host_proxy_id_fieldname = 'proxy_hostid'
+else:
+    host_proxy_id_fieldname = 'proxyid'
+
 only_check_hosts_on_proxy = configParser.get('DEFAULT', 'zabbix-api.only_check_hosts_on_proxy', fallback='')
 if only_check_hosts_on_proxy:
-    proxy = zapi.proxy.get(search={ "host": only_check_hosts_on_proxy })
-    if proxy:
-        proxy_id = int(proxy[0]['proxyid'])
-        log.info(f"Only checking hosts with proxy_hostid={proxy_id} ({only_check_hosts_on_proxy})")
-    else:
+    # With zabbix-7 this has stopped working:
+    #proxy = zapi.proxy.get(search={ "host": only_check_hosts_on_proxy })
+    #if proxy:
+    #    proxy_id = int(proxy[0]['proxyid'])
+    #    log.info(f"Only checking hosts with proxy_hostid={proxy_id} ({only_check_hosts_on_proxy})")
+    #else:
+    #    raise ValueError(f"Could not find zabbix-api.only_proxy={only_check_hosts_on_proxy}!")
+    proxy_list = zapi.proxy.get()
+    for proxy in proxy_list:
+        if proxy['name'] == only_check_hosts_on_proxy:
+            proxy_id = int(proxy['proxyid'])
+            log.info(f"Only checking hosts with {host_proxy_id_fieldname}={proxy_id} ({only_check_hosts_on_proxy})")
+    if not proxy:
         raise ValueError(f"Could not find zabbix-api.only_proxy={only_check_hosts_on_proxy}!")
 else:
     proxy_id = 0
@@ -92,9 +107,10 @@ else:
 for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid", monitored="1"):
     hostid=item["hostid"]
     hosts = zapi.host.get(hostids=item["hostid"])
+    #hosts = zapi.host.get(hostids=item["hostid"], output=['host','proxy_hostid'])
     if hosts:
         host = hosts[0]['host']
-        if int(hosts[0]['proxy_hostid']) == proxy_id:
+        if int(hosts[0][host_proxy_id_fieldname]) == proxy_id:
             #log.debug("Got %s (id=%s) with %s:%s"% (hosts[0]['host'], hostid, hostconn, httpsport))
             if item["key_"] == "mit-testssl-http":
                 protocol = "http"
@@ -111,5 +127,5 @@ for item in zapi.item.get(search={ "key_": "mit-testssl" }, sortfield="itemid", 
                 testsslOutput = subprocess.check_output(testsslCmd).strip()
                 log.info("Output from %s: \n%s" % (testsslCmd, testsslOutput))
         else:
-            log.info("%s with %s will be checked on proxy %s" % (host, item["key_"], hosts[0]['proxy_hostid']))
+            log.info("%s with %s will be checked on proxy %s" % (host, item["key_"], hosts[0][host_proxy_id_fieldname]))
 log.info("READY.")
