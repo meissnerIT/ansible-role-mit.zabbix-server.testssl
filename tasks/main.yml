@@ -30,21 +30,14 @@
     rsync_opts:
       - "--exclude=.git"
 
-- name: Copy wrapper scripts
-  copy:
-    src: "{{ item }}"
-    dest: /usr/lib/zabbix/externalscripts/
-    mode: 0755
-  loop:
-    - mit-check-cert.py
-    - mit-check-cert.sh
-
 - name: Copy mit-testssl.sh*
   copy:
     src: "{{ item }}"
     dest: /opt/mit-testssl.sh/bin/
     mode: 0755    
   loop:
+    - mit-check-cert.py
+    - mit-check-cert.sh
     - mit-testssl.sh
     - mit-testssl.sh-caller
     - mit-testssl.sh-helper
@@ -56,6 +49,8 @@
   loop:
     - /etc/cron.d/local-zabbix-mit-testssl-caller
     - /etc/cron.d/local-zabbix-mit-testssl.sh-caller
+    - /usr/lib/zabbix/externalscripts/mit-check-cert.py
+    - /usr/lib/zabbix/externalscripts/mit-check-cert.sh
     - /usr/local/bin/zabbix-mit-testssl
     - /usr/local/bin/zabbix-mit-testssl-caller
     - /usr/local/bin/zabbix-mit-testssl-helper

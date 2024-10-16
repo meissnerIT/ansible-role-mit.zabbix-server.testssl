@@ -3,9 +3,21 @@
 # Distributed via ansible - mit.zabbix-server.testssl
 #
 # v2020-06-08-1
+# 2024-10-16: Added ca-certificates
 
 set -e
 
-/usr/local/share/testssl.sh/testssl.sh --server-defaults --color 0 --quiet $1 \
-    | grep "NOT ok" | paste -s -d, | xargs || true
+if [ -d /etc/opt/mit-testssl.sh/ca-certificates ]; then
+    first=1
+    for CA_CERT in $(find /etc/opt/mit-testssl.sh/ca-certificates -maxdepth 1 -type f); do
+        if [ $first -eq 1 ]; then
+            TESTSSL_EXTRA_PARAMS="$TESTSSL_EXTRA_PARAMS --add-ca $CA_CERT"
+            first=0
+        else
+            TESTSSL_EXTRA_PARAMS="$TESTSSL_EXTRA_PARAMS,$CA_CERT"
+        fi
+    done
+fi
 
+/opt/mit-testssl.sh/testssl.sh/testssl.sh --server-defaults --color 0 --quiet $TESTSSL_EXTRA_PARAMS $1 \
+    | grep "NOT ok" | paste -s -d, | xargs || true

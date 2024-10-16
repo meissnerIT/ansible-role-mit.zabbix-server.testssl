@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/opt/mit-testssl.sh/.venv/bin/python3
 #
 # Distributed via ansible - mit.zabbix-server.testssl
 #
@@ -6,7 +6,7 @@
 
 # https://www.askpython.com/python/python-command-line-arguments
 import argparse
-import ConfigParser
+import configparser
 import os
 import subprocess
 import sys
@@ -31,39 +31,63 @@ log.setLevel(logging.INFO)
 #logpz.addHandler(shStdout)
 #logpz.setLevel(logging.DEBUG)
 
+##############################################################################
+# Read command line arguments
+##############################################################################
+
 parser = argparse.ArgumentParser()
 parser.add_argument("host")
 parser.add_argument("vhost")
 parser.add_argument("port")
 args = parser.parse_args()
 
-configParser = ConfigParser.RawConfigParser()   
+configParser = configparser.RawConfigParser()
 configFilePath = r'/etc/zabbix/zabbix_agentd-mit-testssl.sh.conf'
 configParser.read(configFilePath)
-zabbix_api_user = configParser.get('DEFAULT', 'zabbix-api.user')
-zabbix_api_password = configParser.get('DEFAULT', 'zabbix-api.password')
-zabbix_api_url = configParser.get('DEFAULT', 'zabbix-api.url')
-zabbix_host = configParser.get('DEFAULT', 'zabbix.host')
 
-# https://stackoverflow.com/questions/419163/what-does-if-name-main-do
-zapi = ZabbixAPI(zabbix_api_url)
-zapi.login(zabbix_api_user, zabbix_api_password)
+##############################################################################
+# mit-pyzabbix.py v2023-09-20
+##############################################################################
+# https://github.com/lukecyca/pyzabbix/issues/157
+# detect_version=False only needed for pyzabbix < 1.3
+zapi = ZabbixAPI(configParser.get('DEFAULT', 'zabbix-api.url'))
+if configParser.has_option('DEFAULT', 'zabbix-api.verify'):
+    # https://requests.readthedocs.io/en/master/user/advanced/#ssl-cert-verification
+    zapi.session.verify = configParser.get('DEFAULT', 'zabbix-api.verify')
+elif not configParser.getboolean('DEFAULT', 'zabbix-api.certificate_verification', fallback=True):
+    # https://urllib3.readthedocs.io/en/latest/advanced-usage.html#ssl-warnings
+    urllib3.disable_warnings()
+    zapi.session.verify = False
+    log.info("Disabled certificate verification - please don't use this in production!")
+
+# https://requests.readthedocs.io/en/latest/user/advanced/#proxies
+if configParser.has_option('DEFAULT', 'zabbix-api.proxy'):
+    proxies = {
+        'http': configParser.get('DEFAULT', 'zabbix-api.proxy'),
+        'https': configParser.get('DEFAULT', 'zabbix-api.proxy')
+    }
+    zapi.session.proxies.update(proxies)
+
+zapi.login(configParser.get('DEFAULT', 'zabbix-api.user'), configParser.get('DEFAULT', 'zabbix-api.password'))
 log.debug("Connected to Zabbix API Version %s" % zapi.api_version())
 
 url = "https://%s:%s" % (args.vhost, args.port)
-testsslCmd = ["/usr/lib/zabbix/externalscripts/mit-check-cert.sh", url]
+testsslCmd = ["/opt/mit-testssl.sh/bin/mit-check-cert.sh", url]
 log.debug("Executing %s" % (testsslCmd))
 log.info("Checking %s" % (url))
-testsslOutput = subprocess.check_output(testsslCmd).strip()
-log.debug("Got '%s' from %s" % (testsslOutput, testsslCmd))
-zabbixSenderCmd = [r'zabbix_sender', '-z', zabbix_host, '-s', args.host, '-k', 'mit-check-cert.sh[%s]' % (args.vhost), '-o', '%s' % (testsslOutput)]
-log.debug("Executing %s" % zabbixSenderCmd)
-try:
-    zabbixSenderOutput = subprocess.check_output(zabbixSenderCmd).strip()
-    log.debug("Called %s, got %s" % (zabbixSenderCmd, zabbixSenderOutput))
-    log.info("Transmitted result '%s' for %s to zabbix server" % (testsslOutput, args.host))
-except:
-    log.error("Got error while executing %s" % (zabbixSenderCmd))
-    log.error(zabbixSenderOutput)
+testsslCmdCompleted = subprocess.run(testsslCmd, stdout = subprocess.PIPE, stderr=subprocess.PIPE)
+if testsslCmdCompleted.returncode == 0 and len(testsslCmdCompleted.stderr) == 0:
+    testsslOutput = testsslCmdCompleted.stdout.decode('utf-8').strip()
+    log.debug("Got '%s' from %s" % (testsslOutput, testsslCmd))
+    zabbixSenderCmd = [r'zabbix_sender', '-z', configParser.get('DEFAULT', 'zabbix.host'), '-s', args.host, '-k', 'mit-check-cert.sh[%s:%s]' % (args.vhost, args.port), '-o', '%s' % (testsslOutput)]
+    log.debug("Executing %s" % zabbixSenderCmd)
+    try:
+        zabbixSenderOutput = subprocess.check_output(zabbixSenderCmd).strip()
+        log.debug("Called %s, got %s" % (zabbixSenderCmd, zabbixSenderOutput))
+        log.info("Transmitted result '%s' for %s to zabbix server" % (testsslOutput, args.host))
+    except:
+        log.error("Got error while executing %s" % (zabbixSenderCmd))
+        log.error(zabbixSenderOutput)
+else:
+    log.warning(f"Got returncode {testsslCmdCompleted.returncode} and stderr='{testsslCmdCompleted.stderr.decode('utf-8')}' while checking host['host'] via {testsslCmd}")
 log.debug("READY.")
-
