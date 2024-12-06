@@ -7,9 +7,9 @@
 
 set -e
 
-if [ -d /etc/opt/mit-testssl.sh/ca-certificates ]; then
+if [ -d {{ mit_testssl_etc_dir }}/ca-certificates ]; then
     first=1
-    for CA_CERT in $(find /etc/opt/mit-testssl.sh/ca-certificates -maxdepth 1 -type f); do
+    for CA_CERT in $(find {{ mit_testssl_etc_dir }}/ca-certificates -maxdepth 1 -type f); do
         if [ $first -eq 1 ]; then
             TESTSSL_EXTRA_PARAMS="$TESTSSL_EXTRA_PARAMS --add-ca $CA_CERT"
             first=0

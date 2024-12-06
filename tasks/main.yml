@@ -1,9 +1,27 @@
 ---
+- name: Set Debian defaults
+  ansible.builtin.set_fact:
+    mit_testssl_etc_dir: /etc/opt/mit-testssl.sh
+  when: ansible_os_family == "Debian"
+
+- name: Set FreeBSD default
+  ansible.builtin.set_fact:
+    mit_testssl_etc_dir: /usr/local/etc/mit-testssl.sh
+  when: ansible_os_family == "FreeBSD"
+
+# https://github.com/drwetter/testssl.sh/issues/258
+- name: Ensure fdescfs is available
+  ansible.posix.mount:
+    path: /dev/fd
+    src: none
+    fstype: fdescfs
+    state: mounted
+  when: ansible_os_family == "FreeBSD"
 
 - name: Copy requirements.txt
   copy:
     src: requirements.txt
-    dest: "{{ install_prefix }}/mit-testssl.sh/"
+    dest: "/opt/mit-testssl.sh/"
 
 - name: Install python3-venv
   apt:
@@ -25,29 +43,29 @@
 - name: Install pip in venv
   pip:
     name: pip
-    virtualenv: "{{ install_prefix }}/mit-testssl.sh/.venv"
+    virtualenv: "/opt/mit-testssl.sh/.venv"
     virtualenv_command: python3 -m venv
 
 - name: Updated python dependencies (requirements.txt)
   pip:
     virtualenv_command: python3 -m venv
-    requirements: "{{ install_prefix }}/mit-testssl.sh/requirements.txt"
-    virtualenv: "{{ install_prefix }}/mit-testssl.sh/.venv"
+    requirements: "/opt/mit-testssl.sh/requirements.txt"
+    virtualenv: "/opt/mit-testssl.sh/.venv"
   environment: "{{ proxy_env }}"
 
 - name: "rsync testssl.sh (directory, distribution)"
-  synchronize: 
+  synchronize:
     src: testssl.sh/
-    dest: "{{ install_prefix }}/mit-testssl.sh/testssl.sh/"
+    dest: "/opt/mit-testssl.sh/testssl.sh/"
     delete: yes
     rsync_opts:
       - "--exclude=.git"
 
 - name: Copy mit-testssl.sh*
-  copy:
+  template:
     src: "{{ item }}"
-    dest: "{{ install_prefix }}/mit-testssl.sh/bin/"
-    mode: 0755    
+    dest: "/opt/mit-testssl.sh/bin/"
+    mode: 0755
   loop:
     - mit-check-cert.py
     - mit-check-cert.sh
@@ -55,12 +73,28 @@
     - mit-testssl.sh-caller
     - mit-testssl.sh-helper
 
+- name: "Add MAILTO={{ mit_testssl_sh_cron_mailto }} to crontab of user zabbix"
+  ansible.builtin.cron:
+    user: zabbix
+    name: MAILTO
+    env: yes
+    job: "{{ mit_testssl_sh_cron_mailto }}"
+
+- name: Add cronjob for mit-testssl.sh-caller
+  ansible.builtin.cron:
+    user: zabbix
+    name: Call mit-testssl.sh
+    minute: 10
+    hour: 0
+    job: /opt/mit-testssl.sh/bin/mit-testssl.sh-caller > /var/log/zabbix/mit-testssl.sh-caller.log
+
 - name: Remove deprecated files
   file:
     path: "{{ item }}"
     state: absent
   loop:
     - /etc/cron.d/local-zabbix-mit-testssl-caller
+    - /etc/cron.d/local-zabbix-mit-testssl-sh-caller
     - /etc/cron.d/local-zabbix-mit-testssl.sh-caller
     - /usr/lib/zabbix/externalscripts/mit-check-cert.py
     - /usr/lib/zabbix/externalscripts/mit-check-cert.sh
@@ -69,9 +103,3 @@
     - /usr/local/bin/zabbix-mit-testssl-helper
     #TODO - /usr/local/share/testssl.sh
     - /var/log/zabbix/zabbix-mit-testssl-caller.log
-
-- name: "Copy cronjob"
-  copy:
-    # without dot as the dot prevents it from beeing executed
-    src: local-zabbix-mit-testssl-sh-caller
-    dest: /etc/cron.d/

@@ -1,7 +1,0 @@
-# Distributed via ansible - mit.zabbix-server.testssl
-MAILTO="support@meissner.it"
-
-#17257: Zabbix Test fuer TLS/SSL Verschluesselung
-# Running @daily / 0:00 sometimes leads to connection errors, so run at 0:10
-10 0 * * *  zabbix  /opt/mit-testssl.sh/bin/mit-testssl.sh-caller > /var/log/zabbix/mit-testssl.sh-caller.log
-

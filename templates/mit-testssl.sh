@@ -47,7 +47,7 @@ parser.add_argument("host")
 args = parser.parse_args()
 
 configParser = configparser.RawConfigParser()
-configFilePath = "/etc/opt/mit-testssl.sh/mit-testssl.sh.conf"
+configFilePath = "{{ mit_testssl_etc_dir }}/mit-testssl.sh.conf"
 configParser.read(configFilePath)
 
 ##############################################################################

@@ -8,7 +8,7 @@
 #
 # zabbix-mit-testssl-caller -> zabbix-mit-testssl -> zabbix-mit-testssl-helper
 #
-# v2021-10-05-1
+# 2024-12-06: Added gpaste
 
 set -e
 
@@ -25,14 +25,20 @@ TESTSSL_SH=/opt/mit-testssl.sh/testssl.sh/testssl.sh
 # The results might look ok but they could be nonsense. Really proceed ? ("yes" to continue) -->
 TESTSSL_EXTRA_PARAMS=" --warnings batch"
 
+if command -v gpaste >/dev/null; then
+    paste_bin=$(which gpaste)
+else
+    paste_bin=paste
+fi
+
 if [ "$1" != "http" ]; then
     TESTSSL_EXTRA_PARAMS="$TESTSSL_EXTRA_PARAMS --starttls $1"
     STARTTLS="$1"
 fi
 
-if [ -d /etc/opt/mit-testssl.sh/ca-certificates ]; then
+if [ -d {{ mit_testssl_etc_dir }}/ca-certificates ]; then
     first=1
-    for CA_CERT in $(find /etc/opt/mit-testssl.sh/ca-certificates -maxdepth 1 -type f); do
+    for CA_CERT in $(find {{ mit_testssl_etc_dir }}/ca-certificates -maxdepth 1 -type f); do
         if [ $first -eq 1 ]; then
             TESTSSL_EXTRA_PARAMS="$TESTSSL_EXTRA_PARAMS --add-ca $CA_CERT"
             first=0
@@ -60,11 +66,11 @@ fi
 
 # Both results are in parentheses
 ${TESTSSL_SH} --protocols --color 0 --quiet ${TESTSSL_EXTRA_PARAMS} ${URI} \
-    | egrep "\((NOT ok|deprecated)\)" | paste -s -d, | xargs || true
+    | egrep "\((NOT ok|deprecated)\)" | $paste_bin -s -d, | xargs || true
 
 # Results are witout parentheses:
 #  Chain of trust               NOT ok (expired)
 # [[BUG] included openssl binaries report expired chain of trust for letsencrypt certificates · Issue #1995 · drwetter/testssl.sh · GitHub](https://github.com/drwetter/testssl.sh/issues/1995) -> Remove "--openssl" when fixed (e.g. testssl.sh v3.1)
 ${TESTSSL_SH} --server-defaults --color 0 --quiet --openssl /usr/bin/openssl ${TESTSSL_EXTRA_PARAMS} ${URI} \
-    | grep "NOT ok" | paste -s -d, | xargs || true
+    | grep "NOT ok" | $paste_bin -s -d, | xargs || true
 
