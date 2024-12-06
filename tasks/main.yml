@@ -19,53 +19,53 @@
   when: ansible_os_family == "FreeBSD"
 
 - name: Copy requirements.txt
-  copy:
+  ansible.builtin.copy:
     src: requirements.txt
-    dest: "/opt/mit-testssl.sh/"
+    dest: /opt/mit-testssl.sh/
 
 - name: Install python3-venv
-  apt:
+  ansible.builtin.apt:
     pkg: python3-venv
   when: ansible_os_family == "Debian"
 
 # Either 39 or 311
 - name: Get python packaging prefix
-  shell: pkg info|egrep -o "^python[0-9]{2,3}-"|egrep -o "[0-9]+"
+  ansible.builtin.shell: pkg info|egrep -o "^python[0-9]{2,3}-"|egrep -o "[0-9]+"
   register: python_packaging_prefix
-  changed_when: no
+  changed_when: false
   when: ansible_os_family == "FreeBSD"
 
 - name: Install python packaging {{ python_packaging_prefix.stdout }}
-  package:
+  ansible.builtin.package:
     name: py{{ python_packaging_prefix.stdout }}-packaging
   when: ansible_os_family == "FreeBSD"
 
 - name: Install pip in venv
-  pip:
+  ansible.builtin.pip:
     name: pip
-    virtualenv: "/opt/mit-testssl.sh/.venv"
+    virtualenv: /opt/mit-testssl.sh/.venv
     virtualenv_command: python3 -m venv
 
 - name: Updated python dependencies (requirements.txt)
-  pip:
+  ansible.builtin.pip:
     virtualenv_command: python3 -m venv
-    requirements: "/opt/mit-testssl.sh/requirements.txt"
-    virtualenv: "/opt/mit-testssl.sh/.venv"
+    requirements: /opt/mit-testssl.sh/requirements.txt
+    virtualenv: /opt/mit-testssl.sh/.venv
   environment: "{{ proxy_env }}"
 
-- name: "rsync testssl.sh (directory, distribution)"
+- name: Rsync testssl.sh (directory, distribution)
   synchronize:
     src: testssl.sh/
-    dest: "/opt/mit-testssl.sh/testssl.sh/"
-    delete: yes
+    dest: /opt/mit-testssl.sh/testssl.sh/
+    delete: true
     rsync_opts:
-      - "--exclude=.git"
+      - --exclude=.git
 
 - name: Copy mit-testssl.sh*
-  template:
+  ansible.builtin.template:
     src: "{{ item }}"
-    dest: "/opt/mit-testssl.sh/bin/"
-    mode: 0755
+    dest: /opt/mit-testssl.sh/bin/
+    mode: "0755"
   loop:
     - mit-check-cert.py
     - mit-check-cert.sh
@@ -73,11 +73,11 @@
     - mit-testssl.sh-caller
     - mit-testssl.sh-helper
 
-- name: "Add MAILTO={{ mit_testssl_sh_cron_mailto }} to crontab of user zabbix"
+- name: Add MAILTO={{ mit_testssl_sh_cron_mailto }} to crontab of user zabbix
   ansible.builtin.cron:
     user: zabbix
     name: MAILTO
-    env: yes
+    env: true
     job: "{{ mit_testssl_sh_cron_mailto }}"
 
 - name: Add cronjob for mit-testssl.sh-caller
@@ -89,7 +89,7 @@
     job: /opt/mit-testssl.sh/bin/mit-testssl.sh-caller > /var/log/zabbix/mit-testssl.sh-caller.log
 
 - name: Remove deprecated files
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: absent
   loop:

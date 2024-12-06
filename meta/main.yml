@@ -3,4 +3,3 @@ dependencies:
   - { role: mit.common }
   - { role: mit.zabbix-agent.common }
   - { role: mit.zabbix-server.common }
-
