@@ -127,9 +127,13 @@ if testsslCmdCompleted.returncode == 0 and len(testsslCmdCompleted.stderr) == 0:
     log.debug("Got '%s' from %s" % (testsslOutput, testsslCmd))
     zabbix_key = 'mit-testssl-' + args.protocol
     zabbix_sender_cmd = [r'zabbix_sender', '-z', configParser.get('DEFAULT', 'zabbix.host'), '-s', host['host'], '-k', zabbix_key, '-o', '%s' % (testsslOutput)]
+    # When called from zabbix (e.g. Frontend → Proxy → mit-testssl.sh)
+    # PATH is not set on FreeBSD.
+    my_env = os.environ.copy()
+    my_env["PATH"] = f"/usr/local/bin:{my_env['PATH']}"
     log.debug("Executing %s" % zabbix_sender_cmd)
     try:
-        zabbix_sender_output = subprocess.check_output(zabbix_sender_cmd).strip()
+        zabbix_sender_output = subprocess.check_output(zabbix_sender_cmd, env=my_env).strip()
         log.debug("Called %s, got %s" % (zabbix_sender_cmd, zabbix_sender_output))
         log.info("Transmitted result '%s' for host %s with key %s to zabbix server" % (testsslOutput, host['host'], zabbix_key))
     except:

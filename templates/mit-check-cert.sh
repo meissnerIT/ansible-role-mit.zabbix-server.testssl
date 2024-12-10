@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!{{ bash_bin }}
 #
 # Distributed via ansible - mit.zabbix-server.testssl
 #

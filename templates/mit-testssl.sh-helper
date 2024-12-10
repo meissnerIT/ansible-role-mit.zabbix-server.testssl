@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!{{ bash_bin }}
 #
 # Distributed via ansible - mit.zabbix-server.testssl
 #
@@ -25,11 +25,18 @@ TESTSSL_SH=/opt/mit-testssl.sh/testssl.sh/testssl.sh
 # The results might look ok but they could be nonsense. Really proceed ? ("yes" to continue) -->
 TESTSSL_EXTRA_PARAMS=" --warnings batch"
 
+# On FreeBSD zabbix doesn't provide PATH
+PATH=/sbin:/bin:/usr/bin:/usr/local/bin
+
 if command -v gpaste >/dev/null; then
     paste_bin=$(which gpaste)
 else
     paste_bin=paste
 fi
+
+# When calling testssl.sh on FreeBSD via cron:
+# /opt/mit-testssl.sh/testssl.sh/testssl.sh: line 7385: cd: /var/cron: Permission denied
+cd /tmp
 
 if [ "$1" != "http" ]; then
     TESTSSL_EXTRA_PARAMS="$TESTSSL_EXTRA_PARAMS --starttls $1"
