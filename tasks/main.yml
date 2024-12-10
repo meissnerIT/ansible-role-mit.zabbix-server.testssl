@@ -6,6 +6,7 @@
 
 - name: Set FreeBSD default
   ansible.builtin.set_fact:
+    is_jail: "{{ 'jails' in ansible_virtualization_tech_guest }}"
     mit_testssl_etc_dir: /usr/local/etc/mit-testssl.sh
   when: ansible_os_family == "FreeBSD"
 
@@ -16,7 +17,10 @@
     src: none
     fstype: fdescfs
     state: mounted
-  when: ansible_os_family == "FreeBSD"
+  when: ansible_os_family == "FreeBSD" and not is_jail
+- name: Ensure fdescfs is available in jail (mount.fdescfs)
+  ansible.builtin.command: test -d /dev/fd
+  when: ansible_os_family == "FreeBSD" and is_jail
 
 - name: Copy requirements.txt
   ansible.builtin.copy:
