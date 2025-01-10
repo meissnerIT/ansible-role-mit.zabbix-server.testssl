@@ -21,6 +21,11 @@
 - name: Ensure fdescfs is available in jail (mount.fdescfs)
   ansible.builtin.command: test -d /dev/fd
   when: ansible_os_family == "FreeBSD" and is_jail
+  changed_when: false
+
+- name: Install bash
+  package:
+    name: bash
 
 - name: Copy requirements.txt
   ansible.builtin.copy:
