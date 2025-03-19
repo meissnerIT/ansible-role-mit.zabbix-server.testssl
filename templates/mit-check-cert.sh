@@ -4,6 +4,7 @@
 #
 # v2020-06-08-1
 # 2024-10-16: Added ca-certificates
+# 2025-03-19: Added "certificate does not match"
 
 set -e
 
@@ -19,5 +20,5 @@ if [ -d {{ mit_testssl_etc_dir }}/ca-certificates ]; then
     done
 fi
 
-/opt/mit-testssl.sh/testssl.sh/testssl.sh --server-defaults --color 0 --quiet $TESTSSL_EXTRA_PARAMS $1 \
-    | grep "NOT ok" | paste -s -d, | xargs || true
+/opt/mit-testssl.sh/testssl.sh/testssl.sh --server-defaults --color 0 --quiet $TESTSSL_EXTRA_PARAMS $1 |
+    egrep "(NOT ok|certificate does not match)" | paste -s -d, | xargs || true
