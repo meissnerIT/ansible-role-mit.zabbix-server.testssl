@@ -47,6 +47,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--config_file", default="{{ mit_testssl_etc_dir }}/mit-testssl.sh.conf")
 args = parser.parse_args()
 
+if not os.path.isfile(args.config_file):
+    sys.exit("config_file '{}' not found".format(args.config_file))
+
 configParser = configparser.RawConfigParser()
 configFilePath = args.config_file
 configParser.read(configFilePath)
