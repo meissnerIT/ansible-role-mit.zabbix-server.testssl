@@ -24,43 +24,57 @@
   changed_when: false
 
 - name: Install bash
-  package:
+  ansible.builtin.package:
     name: bash
+
+##############################################################################
+# mit-python-venv mit-venv v2026-02-25
+##############################################################################
+
+- name: Set target to /opt/mit-testssl.sh
+  ansible.builtin.set_fact:
+    target: /opt/mit-testssl.sh
 
 - name: Copy requirements.txt
   ansible.builtin.copy:
     src: requirements.txt
-    dest: /opt/mit-testssl.sh/
+    dest: "{{ target }}/"
+    mode: "644"
 
-- name: Install python3-venv
+# python3-packaging required on Debian 13
+- name: Install python3-packaging and python3-venv
   ansible.builtin.apt:
-    pkg: python3-venv
+    name:
+      - python3-packaging
+      - python3-venv
   when: ansible_os_family == "Debian"
 
-# Either 39 or 311
-- name: Get python packaging prefix
+# Either 39 or 311 (py39 py311)
+- name: Get python prefix # noqa: risky-shell-pipe
   ansible.builtin.shell: pkg info|egrep -o "^python[0-9]{2,3}-"|egrep -o "[0-9]+"
-  register: python_packaging_prefix
+  register: python_prefix
   changed_when: false
   when: ansible_os_family == "FreeBSD"
 
-- name: Install python packaging {{ python_packaging_prefix.stdout }}
+- name: Install py{{ python_prefix.stdout }}-packaging # noqa: name[template]
   ansible.builtin.package:
-    name: py{{ python_packaging_prefix.stdout }}-packaging
+    name: py{{ python_prefix.stdout }}-packaging
   when: ansible_os_family == "FreeBSD"
 
 - name: Install pip in venv
   ansible.builtin.pip:
     name: pip
-    virtualenv: /opt/mit-testssl.sh/.venv
+    virtualenv: "{{ target }}/.venv"
     virtualenv_command: python3 -m venv
 
 - name: Updated python dependencies (requirements.txt)
   ansible.builtin.pip:
     virtualenv_command: python3 -m venv
-    requirements: /opt/mit-testssl.sh/requirements.txt
-    virtualenv: /opt/mit-testssl.sh/.venv
+    requirements: "{{ target }}/requirements.txt"
+    virtualenv: "{{ target }}/.venv"
   environment: "{{ proxy_env }}"
+
+##############################################################################
 
 - name: Rsync testssl.sh (directory, distribution)
   synchronize:
@@ -82,7 +96,7 @@
     - mit-testssl.sh-caller
     - mit-testssl.sh-helper
 
-- name: Add MAILTO={{ mit_testssl_sh_cron_mailto }} to crontab of user zabbix
+- name: Add MAILTO to crontab of user zabbix
   ansible.builtin.cron:
     user: zabbix
     name: MAILTO
@@ -110,5 +124,5 @@
     - /usr/local/bin/zabbix-mit-testssl
     - /usr/local/bin/zabbix-mit-testssl-caller
     - /usr/local/bin/zabbix-mit-testssl-helper
-    #TODO - /usr/local/share/testssl.sh
+    # TODO - /usr/local/share/testssl.sh
     - /var/log/zabbix/zabbix-mit-testssl-caller.log
