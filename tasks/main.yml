@@ -105,6 +105,7 @@
 
 - name: Add cronjob for mit-testssl.sh-caller
   ansible.builtin.cron:
+    state: '{{ "present" if (mit_testssl_sh_cron_enabled | default("YES") == "YES") else "absent" }}'
     user: zabbix
     name: Call mit-testssl.sh
     minute: 10
